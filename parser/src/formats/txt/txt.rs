@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-use std::io::{BufRead, BufReader, Read, Write};
-use std::collections::BTreeMap;
-use crate::errors::{ParseError, Result};
+use crate::errors::Result;
 use crate::formats::{Parser, Serializer};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use std::io::{BufRead, BufReader, Read, Write};
 
 /// Text формат данных
 pub struct TextFormat;
@@ -13,7 +13,7 @@ enum ParseState {
     InRecord(BTreeMap<String, String>),
 }
 
-impl<T> Parser<T> for TextFormat 
+impl<T> Parser<T> for TextFormat
 where
     T: for<'de> Deserialize<'de>,
 {
@@ -21,11 +21,11 @@ where
         let mut buf_reader = BufReader::new(reader);
         let mut records = Vec::new();
         let mut state = ParseState::WaitingForRecord;
-        
+
         let mut line = String::new();
         while buf_reader.read_line(&mut line)? > 0 {
             let trimmed = line.trim();
-            
+
             if trimmed.is_empty() {
                 // Пустая строка - завершаем текущую запись если есть
                 if let ParseState::InRecord(fields) = state {
@@ -54,18 +54,18 @@ where
                     fields.insert(key.to_string(), clean_value(value));
                 }
             }
-            
+
             line.clear();
         }
-        
+
         // Обрабатываем последнюю запись если EOF
-        if let ParseState::InRecord(fields) = state {
-            if !fields.is_empty() {
-                let record = deserialize_fields(fields)?;
-                records.push(record);
-            }
+        if let ParseState::InRecord(fields) = state
+            && !fields.is_empty()
+        {
+            let record = deserialize_fields(fields)?;
+            records.push(record);
         }
-        
+
         Ok(records)
     }
 }
@@ -89,7 +89,7 @@ where
 {
     // Преобразуем строковые значения в правильные типы JSON
     let mut json_map = serde_json::Map::new();
-    
+
     for (key, value) in fields {
         let json_value = if value.starts_with('"') && value.ends_with('"') {
             // Это строка
@@ -103,13 +103,13 @@ where
         };
         json_map.insert(key, json_value);
     }
-    
+
     let json_value = serde_json::Value::Object(json_map);
     let item = serde_json::from_value(json_value)?;
     Ok(item)
 }
 
-impl<T> Serializer<T> for TextFormat 
+impl<T> Serializer<T> for TextFormat
 where
     T: Serialize,
 {
@@ -123,7 +123,7 @@ where
 
                 for (key, value) in map {
                     let value_str = match value {
-                        serde_json::Value::String(s) => format!("\"{}\"", s),
+                        serde_json::Value::String(s) => format!("\"{s}\""),
                         _ => value.to_string(),
                     };
                     writeln!(writer, "{}: {}", key.to_uppercase(), value_str)?;
@@ -170,7 +170,7 @@ mod tests {
 
         // Проверяем что файл содержит данные
         assert!(!records.is_empty());
-        
+
         // Проверяем первую запись
         let first_record = &records[0];
         assert_eq!(first_record.tx_id, 1000000000000000);
@@ -181,36 +181,34 @@ mod tests {
         assert_eq!(first_record.timestamp, 1633036860000);
         assert_eq!(first_record.status, "FAILURE");
         assert_eq!(first_record.description, "Record number 1");
-        
+
         println!("Загружено {} записей из TXT файла", records.len());
         println!("Первая запись: {:?}", first_record);
     }
 
     #[test]
     fn test_txt_serialization() {
-        let records = vec![
-            BankRecord {
-                tx_id: 1000000000000000,
-                tx_type: "DEPOSIT".to_string(),
-                from_user_id: 0,
-                to_user_id: 9223372036854775807,
-                amount: 100,
-                timestamp: 1633036860000,
-                status: "FAILURE".to_string(),
-                description: "Record number 1".to_string(),
-            },
-        ];
-        
+        let records = vec![BankRecord {
+            tx_id: 1000000000000000,
+            tx_type: "DEPOSIT".to_string(),
+            from_user_id: 0,
+            to_user_id: 9223372036854775807,
+            amount: 100,
+            timestamp: 1633036860000,
+            status: "FAILURE".to_string(),
+            description: "Record number 1".to_string(),
+        }];
+
         let mut buffer = Vec::new();
         TextFormat::serialize(&records, &mut buffer).unwrap();
         let txt_string = String::from_utf8(buffer).unwrap();
-        
+
         // Проверяем что TXT содержит ожидаемые данные
         assert!(txt_string.contains("# Record 1"));
         assert!(txt_string.contains("TX_ID: 1000000000000000"));
         assert!(txt_string.contains("TX_TYPE: \"DEPOSIT\""));
         assert!(txt_string.contains("DESCRIPTION: \"Record number 1\""));
-        
+
         println!("Сериализованный TXT:\n{}", txt_string);
     }
 }
