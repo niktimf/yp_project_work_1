@@ -75,9 +75,8 @@ impl YPBankRecord {
         let desc_len = reader.read_u32::<BigEndian>()? as usize;
         let mut desc_bytes = vec![0_u8; desc_len];
         reader.read_exact(&mut desc_bytes)?;
-        let mut description = String::from_utf8(desc_bytes).map_err(|e| {
-            ParseError::BinaryFormat(format!("Invalid UTF-8 in description: {e}"))
-        })?;
+        let mut description = String::from_utf8(desc_bytes)
+            .map_err(|e| ParseError::BinaryFormat(format!("Invalid UTF-8 in description: {e}")))?;
 
         if description.starts_with('"') && description.ends_with('"') {
             description = description[1..description.len() - 1].to_string();
@@ -288,9 +287,7 @@ impl TryFrom<u8> for TransactionStatus {
             0 => Ok(Self::Success),
             1 => Ok(Self::Failure),
             2 => Ok(Self::Pending),
-            _ => Err(ParseError::BinaryFormat(format!(
-                "Invalid STATUS: {value}"
-            ))),
+            _ => Err(ParseError::BinaryFormat(format!("Invalid STATUS: {value}"))),
         }
     }
 }
