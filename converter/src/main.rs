@@ -30,7 +30,7 @@ enum Format {
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("Ошибка: {}", e);
+        eprintln!("Ошибка: {e}");
         std::process::exit(1);
     }
 }
@@ -59,7 +59,7 @@ fn run() -> Result<()> {
 
     let mut writer = BufWriter::new(io::stdout());
     serialize_output(&mut writer, &args.output_format, &records)?;
-    writer.flush().map_err(|e| ParseError::Io(e))?;
+    writer.flush().map_err(ParseError::Io)?;
 
     eprintln!("Конвертация завершена успешно");
     Ok(())

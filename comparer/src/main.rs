@@ -1,8 +1,10 @@
 use clap::Parser;
-use parser::formats::{YPBankRecord, binary::YPBankBinaryFormat, csv::CsvFormat, txt::TextFormat};
-use parser::{ParseError, Result};
+use parser::formats::{
+    Parser as YPBankParser, YPBankRecord, binary::YPBankBinaryFormat, csv::CsvFormat,
+    txt::TextFormat,
+};
 use std::fs::File;
-use std::io::{self, BufReader, Read};
+use std::io::{BufReader, Read};
 
 #[derive(Parser, Debug)]
 #[command(name = "ypbank_compare")]
@@ -10,19 +12,19 @@ use std::io::{self, BufReader, Read};
 struct Args {
     /// Первый файл для сравнения
     #[arg(long)]
-    file1: String,
+    first_file: String,
 
     /// Формат первого файла (csv, txt, binary)
     #[arg(long, value_enum)]
-    format1: Format,
+    first_file_format: YpBankFormat,
 
     /// Второй файл для сравнения
     #[arg(long)]
-    file2: String,
+    second_file: String,
 
     /// Формат второго файла (csv, txt, binary)
     #[arg(long, value_enum)]
-    format2: Format,
+    second_file_format: YpBankFormat,
 
     /// Показывать детальную информацию о различиях
     #[arg(long, default_value_t = false)]
@@ -30,7 +32,7 @@ struct Args {
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
-enum Format {
+enum YpBankFormat {
     Csv,
     Txt,
     Binary,
@@ -38,138 +40,44 @@ enum Format {
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("Ошибка: {}", e);
+        eprintln!("Ошибка: {e}");
         std::process::exit(1);
     }
 }
 
-fn run() -> Result<()> {
+fn run() -> anyhow::Result<()> {
     let args = Args::parse();
 
-    let file1 = File::open(&args.file1).map_err(|e| {
-        ParseError::Io(io::Error::new(
-            e.kind(),
-            format!("Не удалось открыть файл '{}': {}", args.file1, e),
-        ))
+    let file1 = File::open(&args.first_file).map_err(|e| {
+        anyhow::Error::new(e).context(format!("Не удалось открыть файл '{}'", args.first_file))
     })?;
 
-    let file2 = File::open(&args.file2).map_err(|e| {
-        ParseError::Io(io::Error::new(
-            e.kind(),
-            format!("Не удалось открыть файл '{}': {}", args.file2, e),
-        ))
+    let file2 = File::open(&args.second_file).map_err(|e| {
+        anyhow::Error::new(e).context(format!("Не удалось открыть файл '{}'", args.second_file))
     })?;
 
-    let records1 = parse_file(BufReader::new(file1), &args.format1)?;
-    let records2 = parse_file(BufReader::new(file2), &args.format2)?;
+    let records1 = parse_file(BufReader::new(file1), &args.first_file_format)?;
+    let records2 = parse_file(BufReader::new(file2), &args.second_file_format)?;
 
-    compare_records(&records1, &records2, &args)?;
-    Ok(())
-}
-
-fn parse_file<R: Read>(reader: BufReader<R>, format: &Format) -> Result<Vec<YPBankRecord>> {
-    use parser::formats::Parser as FormatParser;
-
-    match format {
-        Format::Csv => CsvFormat::parse(reader),
-        Format::Txt => TextFormat::parse(reader),
-        Format::Binary => YPBankBinaryFormat::parse(reader),
-    }
-}
-
-fn compare_records(
-    records1: &[YPBankRecord],
-    records2: &[YPBankRecord],
-    args: &Args,
-) -> Result<()> {
-    if records1.len() != records2.len() {
-        println!(
-            "Файлы содержат разное количество записей: {} в '{}' и {} в '{}'",
-            records1.len(),
-            args.file1,
-            records2.len(),
-            args.file2
-        );
-
-        if args.verbose {
-            if records1.len() > records2.len() {
-                println!(
-                    "В файле '{}' на {} записей больше",
-                    args.file1,
-                    records1.len() - records2.len()
-                );
-            } else {
-                println!(
-                    "В файле '{}' на {} записей больше",
-                    args.file2,
-                    records2.len() - records1.len()
-                );
-            }
-        }
-
-        return Ok(());
-    }
-
-    let mut differences = Vec::new();
-    for (index, (rec1, rec2)) in records1.iter().zip(records2.iter()).enumerate() {
-        if rec1 != rec2 {
-            differences.push((index, rec1, rec2));
-        }
-    }
-
-    if differences.is_empty() {
-        println!(
-            "Записи транзакций в '{}' и '{}' идентичны.",
-            args.file1, args.file2
-        );
+    if records1 == records2 {
+        println!("Файлы идентичны");
     } else {
-        println!(
-            "Найдено {} различий между '{}' и '{}'",
-            differences.len(),
-            args.file1,
-            args.file2
-        );
-
+        println!("Файлы различаются");
         if args.verbose {
-            for (index, rec1, rec2) in &differences {
-                println!("\nРазличие в записи #{}", index + 1);
-                print_diff(rec1, rec2);
-            }
+            println!("Записей в '{}': {}", args.first_file, records1.len());
+            println!("Записей в '{}': {}", args.second_file, records2.len());
         }
     }
-
     Ok(())
 }
 
-fn print_diff(rec1: &YPBankRecord, rec2: &YPBankRecord) {
-    if rec1.tx_id != rec2.tx_id {
-        println!("  TX_ID: {} != {}", rec1.tx_id, rec2.tx_id);
-    }
-    if rec1.tx_type != rec2.tx_type {
-        println!("  TX_TYPE: {:?} != {:?}", rec1.tx_type, rec2.tx_type);
-    }
-    if rec1.from_user_id != rec2.from_user_id {
-        println!(
-            "  FROM_USER_ID: {} != {}",
-            rec1.from_user_id, rec2.from_user_id
-        );
-    }
-    if rec1.to_user_id != rec2.to_user_id {
-        println!("  TO_USER_ID: {} != {}", rec1.to_user_id, rec2.to_user_id);
-    }
-    if rec1.amount != rec2.amount {
-        println!("  AMOUNT: {} != {}", rec1.amount, rec2.amount);
-    }
-    if rec1.timestamp != rec2.timestamp {
-        println!("  TIMESTAMP: {} != {}", rec1.timestamp, rec2.timestamp);
-    }
-    if rec1.status != rec2.status {
-        println!("  STATUS: {:?} != {:?}", rec1.status, rec2.status);
-    }
-    if rec1.description != rec2.description {
-        println!(
-            "  DESCRIPTION: '{}' != '{}'",
-            rec1.description, rec2.description
-        );
+fn parse_file<R: Read>(
+    reader: BufReader<R>,
+    format: &YpBankFormat,
+) -> anyhow::Result<Vec<YPBankRecord>> {
+    match format {
+        YpBankFormat::Csv => CsvFormat::parse(reader).map_err(anyhow::Error::from),
+        YpBankFormat::Txt => TextFormat::parse(reader).map_err(anyhow::Error::from),
+        YpBankFormat::Binary => YPBankBinaryFormat::parse(reader).map_err(anyhow::Error::from),
     }
 }

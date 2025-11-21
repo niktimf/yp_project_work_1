@@ -39,4 +39,7 @@ pub enum ParseError {
 
     #[error("MessagePack decoding error: {0}")]
     RmpDecode(#[from] rmp_serde::decode::Error),
+
+    #[error("Integer conversion error: {0}")]
+    TryFromInt(#[from] std::num::TryFromIntError),
 }

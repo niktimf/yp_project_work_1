@@ -16,12 +16,12 @@ where
             match YPBankRecord::read_from(&mut reader) {
                 Ok(record) => {
                     let json_obj = serde_json::json!({
-                        "TX_ID": record.tx_id as i64,
+                        "TX_ID": record.tx_id,
                         "TX_TYPE": record.tx_type.to_string(),
-                        "FROM_USER_ID": record.from_user_id as i64,
-                        "TO_USER_ID": record.to_user_id as i64,
+                        "FROM_USER_ID": record.from_user_id,
+                        "TO_USER_ID": record.to_user_id,
                         "AMOUNT": record.amount,
-                        "TIMESTAMP": record.timestamp as i64,
+                        "TIMESTAMP": record.timestamp,
                         "STATUS": record.status.to_string(),
                         "DESCRIPTION": record.description
                     });

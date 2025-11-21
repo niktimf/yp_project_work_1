@@ -16,7 +16,7 @@ pub struct YPBankRecord {
     pub tx_type: TransactionType,
     pub from_user_id: u64,
     pub to_user_id: u64,
-    pub amount: i64,
+    pub amount: u64,
     pub timestamp: u64,
     pub status: TransactionStatus,
     pub description: String,
@@ -65,7 +65,7 @@ impl YPBankRecord {
 
         let from_user_id = reader.read_u64::<BigEndian>()?;
         let to_user_id = reader.read_u64::<BigEndian>()?;
-        let amount = reader.read_i64::<BigEndian>()?;
+        let amount = reader.read_u64::<BigEndian>()?;
         let timestamp = reader.read_u64::<BigEndian>()?;
 
         let mut status_byte = [0_u8; 1];
@@ -99,16 +99,16 @@ impl YPBankRecord {
         let record_size = Self::FIXED_SIZE + desc_bytes.len();
 
         writer.write_all(Self::MAGIC)?;
-        writer.write_u32::<BigEndian>(record_size as u32)?;
+        writer.write_u32::<BigEndian>(u32::try_from(record_size)?)?;
 
         writer.write_u64::<BigEndian>(self.tx_id)?;
         writer.write_all(&[self.tx_type as u8])?;
         writer.write_u64::<BigEndian>(self.from_user_id)?;
         writer.write_u64::<BigEndian>(self.to_user_id)?;
-        writer.write_i64::<BigEndian>(self.amount)?;
+        writer.write_u64::<BigEndian>(self.amount)?;
         writer.write_u64::<BigEndian>(self.timestamp)?;
         writer.write_all(&[self.status as u8])?;
-        writer.write_u32::<BigEndian>(desc_bytes.len() as u32)?;
+        writer.write_u32::<BigEndian>(u32::try_from(desc_bytes.len())?)?;
         writer.write_all(desc_bytes)?;
 
         Ok(())
@@ -118,12 +118,12 @@ impl YPBankRecord {
 impl From<YPBankRecord> for serde_json::Value {
     fn from(record: YPBankRecord) -> Self {
         serde_json::json!({
-            "TX_ID": record.tx_id as i64,
+            "TX_ID": record.tx_id,
             "TX_TYPE": record.tx_type.to_string(),
-            "FROM_USER_ID": record.from_user_id as i64,
-            "TO_USER_ID": record.to_user_id as i64,
+            "FROM_USER_ID": record.from_user_id,
+            "TO_USER_ID": record.to_user_id,
             "AMOUNT": record.amount,
-            "TIMESTAMP": record.timestamp as i64,
+            "TIMESTAMP": record.timestamp,
             "STATUS": record.status.to_string(),
             "DESCRIPTION": record.description
         })
@@ -137,9 +137,8 @@ impl TryFrom<&serde_json::Map<String, serde_json::Value>> for YPBankRecord {
         Ok(Self {
             tx_id: obj
                 .get("TX_ID")
-                .and_then(serde_json::Value::as_i64)
-                .ok_or_else(|| ParseError::BinaryFormat("Missing or invalid TX_ID".to_string()))?
-                as u64,
+                .and_then(serde_json::Value::as_u64)
+                .ok_or_else(|| ParseError::BinaryFormat("Missing or invalid TX_ID".to_string()))?,
             tx_type: obj
                 .get("TX_TYPE")
                 .and_then(|v| v.as_str())
@@ -147,26 +146,26 @@ impl TryFrom<&serde_json::Map<String, serde_json::Value>> for YPBankRecord {
                 .and_then(TransactionType::try_from)?,
             from_user_id: obj
                 .get("FROM_USER_ID")
-                .and_then(serde_json::Value::as_i64)
+                .and_then(serde_json::Value::as_u64)
                 .ok_or_else(|| {
                     ParseError::BinaryFormat("Missing or invalid FROM_USER_ID".to_string())
-                })? as u64,
+                })?,
             to_user_id: obj
                 .get("TO_USER_ID")
-                .and_then(serde_json::Value::as_i64)
+                .and_then(serde_json::Value::as_u64)
                 .ok_or_else(|| {
                     ParseError::BinaryFormat("Missing or invalid TO_USER_ID".to_string())
-                })? as u64,
+                })?,
             amount: obj
                 .get("AMOUNT")
-                .and_then(serde_json::Value::as_i64)
+                .and_then(serde_json::Value::as_u64)
                 .ok_or_else(|| ParseError::BinaryFormat("Missing or invalid AMOUNT".to_string()))?,
             timestamp: obj
                 .get("TIMESTAMP")
-                .and_then(serde_json::Value::as_i64)
+                .and_then(serde_json::Value::as_u64)
                 .ok_or_else(|| {
                     ParseError::BinaryFormat("Missing or invalid TIMESTAMP".to_string())
-                })? as u64,
+                })?,
             status: obj
                 .get("STATUS")
                 .and_then(|v| v.as_str())
