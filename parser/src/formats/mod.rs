@@ -75,8 +75,11 @@ impl YPBankRecord {
         let desc_len = reader.read_u32::<BigEndian>()? as usize;
         let mut desc_bytes = vec![0_u8; desc_len];
         reader.read_exact(&mut desc_bytes)?;
-        let mut description = String::from_utf8(desc_bytes)
-            .map_err(|e| ParseError::BinaryFormat(format!("Invalid UTF-8 in description: {e}")))?;
+        let mut description = String::from_utf8(desc_bytes).map_err(|e| {
+            ParseError::BinaryFormat(format!(
+                "Invalid UTF-8 in description: {e}"
+            ))
+        })?;
 
         if description.starts_with('"') && description.ends_with('"') {
             description = description[1..description.len() - 1].to_string();
@@ -133,49 +136,75 @@ impl From<YPBankRecord> for serde_json::Value {
 impl TryFrom<&serde_json::Map<String, serde_json::Value>> for YPBankRecord {
     type Error = ParseError;
 
-    fn try_from(obj: &serde_json::Map<String, serde_json::Value>) -> Result<Self> {
+    fn try_from(
+        obj: &serde_json::Map<String, serde_json::Value>,
+    ) -> Result<Self> {
         Ok(Self {
             tx_id: obj
                 .get("TX_ID")
                 .and_then(serde_json::Value::as_u64)
-                .ok_or_else(|| ParseError::BinaryFormat("Missing or invalid TX_ID".to_string()))?,
+                .ok_or_else(|| {
+                    ParseError::BinaryFormat(
+                        "Missing or invalid TX_ID".to_string(),
+                    )
+                })?,
             tx_type: obj
                 .get("TX_TYPE")
                 .and_then(|v| v.as_str())
-                .ok_or_else(|| ParseError::BinaryFormat("Missing or invalid TX_TYPE".to_string()))
+                .ok_or_else(|| {
+                    ParseError::BinaryFormat(
+                        "Missing or invalid TX_TYPE".to_string(),
+                    )
+                })
                 .and_then(TransactionType::try_from)?,
             from_user_id: obj
                 .get("FROM_USER_ID")
                 .and_then(serde_json::Value::as_u64)
                 .ok_or_else(|| {
-                    ParseError::BinaryFormat("Missing or invalid FROM_USER_ID".to_string())
+                    ParseError::BinaryFormat(
+                        "Missing or invalid FROM_USER_ID".to_string(),
+                    )
                 })?,
             to_user_id: obj
                 .get("TO_USER_ID")
                 .and_then(serde_json::Value::as_u64)
                 .ok_or_else(|| {
-                    ParseError::BinaryFormat("Missing or invalid TO_USER_ID".to_string())
+                    ParseError::BinaryFormat(
+                        "Missing or invalid TO_USER_ID".to_string(),
+                    )
                 })?,
             amount: obj
                 .get("AMOUNT")
                 .and_then(serde_json::Value::as_u64)
-                .ok_or_else(|| ParseError::BinaryFormat("Missing or invalid AMOUNT".to_string()))?,
+                .ok_or_else(|| {
+                    ParseError::BinaryFormat(
+                        "Missing or invalid AMOUNT".to_string(),
+                    )
+                })?,
             timestamp: obj
                 .get("TIMESTAMP")
                 .and_then(serde_json::Value::as_u64)
                 .ok_or_else(|| {
-                    ParseError::BinaryFormat("Missing or invalid TIMESTAMP".to_string())
+                    ParseError::BinaryFormat(
+                        "Missing or invalid TIMESTAMP".to_string(),
+                    )
                 })?,
             status: obj
                 .get("STATUS")
                 .and_then(|v| v.as_str())
-                .ok_or_else(|| ParseError::BinaryFormat("Missing or invalid STATUS".to_string()))
+                .ok_or_else(|| {
+                    ParseError::BinaryFormat(
+                        "Missing or invalid STATUS".to_string(),
+                    )
+                })
                 .and_then(TransactionStatus::try_from)?,
             description: obj
                 .get("DESCRIPTION")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| {
-                    ParseError::BinaryFormat("Missing or invalid DESCRIPTION".to_string())
+                    ParseError::BinaryFormat(
+                        "Missing or invalid DESCRIPTION".to_string(),
+                    )
                 })?
                 .to_string(),
         })
@@ -191,7 +220,10 @@ pub enum TransactionType {
 }
 
 impl Serialize for TransactionType {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -260,7 +292,10 @@ pub enum TransactionStatus {
 }
 
 impl Serialize for TransactionStatus {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
@@ -286,7 +321,9 @@ impl TryFrom<u8> for TransactionStatus {
             0 => Ok(Self::Success),
             1 => Ok(Self::Failure),
             2 => Ok(Self::Pending),
-            _ => Err(ParseError::BinaryFormat(format!("Invalid STATUS: {value}"))),
+            _ => Err(ParseError::BinaryFormat(format!(
+                "Invalid STATUS: {value}"
+            ))),
         }
     }
 }

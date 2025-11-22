@@ -1,7 +1,7 @@
 use clap::Parser;
 use parser::formats::{
-    Parser as YPBankParser, YPBankRecord, binary::YPBankBinaryFormat, csv::CsvFormat,
-    txt::TextFormat,
+    Parser as YPBankParser, YPBankRecord, binary::YPBankBinaryFormat,
+    csv::CsvFormat, txt::TextFormat,
 };
 use std::fs::File;
 use std::io::{BufReader, Read};
@@ -49,11 +49,13 @@ fn run() -> anyhow::Result<()> {
     let args = Args::parse();
 
     let file1 = File::open(&args.first_file).map_err(|e| {
-        anyhow::Error::new(e).context(format!("Не удалось открыть файл '{}'", args.first_file))
+        anyhow::Error::new(e)
+            .context(format!("Не удалось открыть файл '{}'", args.first_file))
     })?;
 
     let file2 = File::open(&args.second_file).map_err(|e| {
-        anyhow::Error::new(e).context(format!("Не удалось открыть файл '{}'", args.second_file))
+        anyhow::Error::new(e)
+            .context(format!("Не удалось открыть файл '{}'", args.second_file))
     })?;
 
     let records1 = parse_file(BufReader::new(file1), &args.first_file_format)?;
@@ -76,8 +78,14 @@ fn parse_file<R: Read>(
     format: &YpBankFormat,
 ) -> anyhow::Result<Vec<YPBankRecord>> {
     match format {
-        YpBankFormat::Csv => CsvFormat::parse(reader).map_err(anyhow::Error::from),
-        YpBankFormat::Txt => TextFormat::parse(reader).map_err(anyhow::Error::from),
-        YpBankFormat::Binary => YPBankBinaryFormat::parse(reader).map_err(anyhow::Error::from),
+        YpBankFormat::Csv => {
+            CsvFormat::parse(reader).map_err(anyhow::Error::from)
+        }
+        YpBankFormat::Txt => {
+            TextFormat::parse(reader).map_err(anyhow::Error::from)
+        }
+        YpBankFormat::Binary => {
+            YPBankBinaryFormat::parse(reader).map_err(anyhow::Error::from)
+        }
     }
 }

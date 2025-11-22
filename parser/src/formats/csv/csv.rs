@@ -53,7 +53,9 @@ where
 #[cfg(test)]
 mod tests {
     use crate::formats::csv::CsvFormat;
-    use crate::formats::{Parser, Serializer, TransactionStatus, TransactionType, YPBankRecord};
+    use crate::formats::{
+        Parser, Serializer, TransactionStatus, TransactionType, YPBankRecord,
+    };
     use std::fs::File;
 
     #[test]

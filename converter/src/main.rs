@@ -1,5 +1,7 @@
 use clap::Parser;
-use parser::formats::{YPBankRecord, binary::YPBankBinaryFormat, csv::CsvFormat, txt::TextFormat};
+use parser::formats::{
+    YPBankRecord, binary::YPBankBinaryFormat, csv::CsvFormat, txt::TextFormat,
+};
 use parser::{ParseError, Result};
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, Read, Write};
@@ -44,7 +46,10 @@ fn run() -> Result<()> {
         Box::new(File::open(&args.input).map_err(|e| {
             ParseError::Io(io::Error::new(
                 e.kind(),
-                format!("Не удалось открыть входной файл '{}': {}", args.input, e),
+                format!(
+                    "Не удалось открыть входной файл '{}': {}",
+                    args.input, e
+                ),
             ))
         })?)
     };
@@ -65,7 +70,10 @@ fn run() -> Result<()> {
     Ok(())
 }
 
-fn parse_input<R: Read>(reader: BufReader<R>, format: &Format) -> Result<Vec<YPBankRecord>> {
+fn parse_input<R: Read>(
+    reader: BufReader<R>,
+    format: &Format,
+) -> Result<Vec<YPBankRecord>> {
     use parser::formats::Parser as FormatParser;
 
     match format {
@@ -75,7 +83,11 @@ fn parse_input<R: Read>(reader: BufReader<R>, format: &Format) -> Result<Vec<YPB
     }
 }
 
-fn serialize_output<W: Write>(writer: W, format: &Format, records: &[YPBankRecord]) -> Result<()> {
+fn serialize_output<W: Write>(
+    writer: W,
+    format: &Format,
+    records: &[YPBankRecord],
+) -> Result<()> {
     use parser::formats::Serializer;
 
     match format {

@@ -29,7 +29,11 @@ where
                     let item: T = serde_json::from_value(json_obj)?;
                     records.push(item);
                 }
-                Err(ParseError::Io(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
+                Err(ParseError::Io(e))
+                    if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+                {
+                    break;
+                }
                 Err(e) => return Err(e),
             }
         }
@@ -46,7 +50,9 @@ where
         for item in data {
             let json_value = serde_json::to_value(item)?;
             let obj = json_value.as_object().ok_or_else(|| {
-                ParseError::BinaryFormat("Expected object for serialization".to_string())
+                ParseError::BinaryFormat(
+                    "Expected object for serialization".to_string(),
+                )
             })?;
 
             let record = YPBankRecord::try_from(obj)?;
@@ -65,7 +71,8 @@ mod tests {
     #[test]
     fn test_binary_parsing() {
         let file = File::open("src/test_data/records_example.bin").unwrap();
-        let records: Vec<YPBankRecord> = YPBankBinaryFormat::parse(file).unwrap();
+        let records: Vec<YPBankRecord> =
+            YPBankBinaryFormat::parse(file).unwrap();
 
         // Проверяем что файл содержит данные
         assert!(!records.is_empty());
