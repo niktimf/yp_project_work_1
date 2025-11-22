@@ -368,7 +368,7 @@ impl fmt::Display for TransactionStatus {
 
 pub trait Parser {
     type Item;
-    
+
     /// Parses data from a reader into a vector of items.
     ///
     /// # Errors
@@ -383,7 +383,7 @@ pub trait Parser {
 
 pub trait Serializer {
     type Item;
-    
+
     /// Serializes a slice of items to a writer.
     ///
     /// # Errors
