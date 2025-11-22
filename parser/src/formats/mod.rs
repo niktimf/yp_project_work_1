@@ -5,11 +5,22 @@ pub mod txt;
 use crate::ParseError;
 use crate::errors::Result;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use field_names::FieldNames;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::io::{Read, Write};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+use std::sync::LazyLock;
+
+static YP_BANK_RECORD_UPPERCASE_FIELDS: LazyLock<Vec<String>> =
+    LazyLock::new(|| {
+        YPBankRecord::FIELDS
+            .iter()
+            .map(|s| s.to_uppercase())
+            .collect()
+    });
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, FieldNames)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub struct YPBankRecord {
     pub tx_id: u64,
@@ -355,38 +366,40 @@ impl fmt::Display for TransactionStatus {
     }
 }
 
-/// Трейт для парсинга данных из потока
-pub trait Parser<T> {
-    /// Парсит данные из reader в вектор записей типа T
+pub trait Parser {
+    type Item;
+    
+    /// Parses data from a reader into a vector of items.
     ///
-    /// # Arguments
-    /// * `reader` - Источник данных, реализующий трейт Read
+    /// # Errors
     ///
-    /// # Returns
-    /// Возвращает вектор распарсенных записей
-    fn parse<R: Read>(reader: R) -> Result<Vec<T>>;
+    /// Returns an error if:
+    /// - The input data cannot be read due to I/O issues
+    /// - The data format is invalid or corrupted
+    /// - Required fields are missing or have invalid values
+    /// - Data deserialization fails
+    fn parse<R: Read>(reader: R) -> Result<Vec<Self::Item>>;
 }
 
-/// Трейт для сериализации данных в поток
-pub trait Serializer<T> {
-    /// Сериализует вектор записей в writer
+pub trait Serializer {
+    type Item;
+    
+    /// Serializes a slice of items to a writer.
     ///
-    /// # Arguments
-    /// * `data` - Слайс записей для сериализации
-    /// * `writer` - Приемник данных, реализующий трейт Write
+    /// # Errors
     ///
-    /// # Returns
-    /// Возвращает Ok(()) при успешной сериализации или ошибку `ParseError`
-    fn serialize<W: Write>(data: &[T], writer: W) -> Result<()>;
+    /// Returns an error if:
+    /// - Writing to the output fails due to I/O issues
+    /// - Data serialization fails
+    /// - The writer cannot be flushed
+    fn serialize<W: Write>(data: &[Self::Item], writer: W) -> Result<()>;
 }
 
-/// Трейт для полного формата данных (парсинг + сериализация)
-pub trait Format<T>: Parser<T> + Serializer<T> {}
-impl<T, F> Format<T> for F where F: Parser<T> + Serializer<T> {}
+pub trait Format: Parser + Serializer {}
+impl<F: Parser + Serializer> Format for F {}
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::formats::{TransactionStatus, TransactionType, YPBankRecord};
     use proptest::prelude::Strategy;
     use proptest::prop_oneof;
@@ -415,16 +428,6 @@ mod tests {
 
         pub fn with_tx_id(mut self, tx_id: u64) -> Self {
             self.record.tx_id = tx_id;
-            self
-        }
-
-        pub fn with_type(mut self, tx_type: TransactionType) -> Self {
-            self.record.tx_type = tx_type;
-            self
-        }
-
-        pub fn with_status(mut self, status: TransactionStatus) -> Self {
-            self.record.status = status;
             self
         }
 

@@ -1,6 +1,6 @@
 use crate::errors::Result;
-use crate::formats::{Parser, Serializer};
-use serde::{Deserialize, Serialize};
+use crate::formats::{Parser, Serializer, YPBankRecord};
+use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Read, Write};
 
@@ -13,11 +13,9 @@ enum ParseState {
     InRecord(BTreeMap<String, String>),
 }
 
-impl<T> Parser<T> for YPBankText
-where
-    T: for<'de> Deserialize<'de>,
-{
-    fn parse<R: Read>(reader: R) -> Result<Vec<T>> {
+impl Parser for YPBankText {
+    type Item = YPBankRecord;
+    fn parse<R: Read>(reader: R) -> Result<Vec<YPBankRecord>> {
         let mut buf_reader = BufReader::new(reader);
         let mut records = Vec::new();
         let mut state = ParseState::WaitingForRecord;
@@ -107,7 +105,7 @@ where
 }
 
 /// Определяет тип JSON значения для поля на основе его имени и значения.
-/// Этот подход основан на знании схемы YPBankRecord и является
+/// Этот подход основан на знании схемы `YPBankRecord` и является
 /// прагматичным решением для текстового формата.
 fn infer_field_type(field_name: &str, value: &str) -> serde_json::Value {
     let upper_field = field_name.to_uppercase();
@@ -132,14 +130,12 @@ fn infer_field_type(field_name: &str, value: &str) -> serde_json::Value {
     )
 }
 
-impl<T> Serializer<T> for YPBankText
-where
-    T: Serialize,
-{
-    fn serialize<W: Write>(data: &[T], mut writer: W) -> Result<()> {
-        for (index, item) in data.iter().enumerate() {
+impl Serializer for YPBankText {
+    type Item = YPBankRecord;
+    fn serialize<W: Write>(data: &[YPBankRecord], mut writer: W) -> Result<()> {
+        for (index, record) in data.iter().enumerate() {
             // Сериализуем в JSON, затем в текстовый формат
-            let json_value = serde_json::to_value(item)?;
+            let json_value = serde_json::to_value(record)?;
 
             if let serde_json::Value::Object(map) = json_value {
                 writeln!(writer, "# Record {}", index + 1)?;

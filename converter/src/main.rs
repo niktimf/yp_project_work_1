@@ -16,15 +16,15 @@ struct Args {
 
     /// Формат входного файла (csv, txt, binary)
     #[arg(long, value_enum)]
-    input_format: Format,
+    input_format: YPBankFormat,
 
     /// Формат выходного файла (csv, txt, binary)
     #[arg(long, value_enum)]
-    output_format: Format,
+    output_format: YPBankFormat,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
-enum Format {
+enum YPBankFormat {
     Csv,
     Txt,
     Binary,
@@ -72,27 +72,27 @@ fn run() -> Result<()> {
 
 fn parse_input<R: Read>(
     reader: BufReader<R>,
-    format: &Format,
+    format: &YPBankFormat,
 ) -> Result<Vec<YPBankRecord>> {
     use parser::formats::Parser as FormatParser;
 
     match format {
-        Format::Csv => YPBankCSV::parse(reader),
-        Format::Txt => YPBankText::parse(reader),
-        Format::Binary => YPBankBin::parse(reader),
+        YPBankFormat::Csv => YPBankCSV::parse(reader),
+        YPBankFormat::Txt => YPBankText::parse(reader),
+        YPBankFormat::Binary => YPBankBin::parse(reader),
     }
 }
 
 fn serialize_output<W: Write>(
     writer: W,
-    format: &Format,
+    format: &YPBankFormat,
     records: &[YPBankRecord],
 ) -> Result<()> {
     use parser::formats::Serializer;
 
     match format {
-        Format::Csv => YPBankCSV::serialize(records, writer),
-        Format::Txt => YPBankText::serialize(records, writer),
-        Format::Binary => YPBankBin::serialize(records, writer),
+        YPBankFormat::Csv => YPBankCSV::serialize(records, writer),
+        YPBankFormat::Txt => YPBankText::serialize(records, writer),
+        YPBankFormat::Binary => YPBankBin::serialize(records, writer),
     }
 }

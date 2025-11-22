@@ -1,34 +1,17 @@
 use crate::errors::{ParseError, Result};
 use crate::formats::{Parser, Serializer, YPBankRecord};
-use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 
 pub struct YPBankBin;
 
-impl<T> Parser<T> for YPBankBin
-where
-    T: for<'de> Deserialize<'de>,
-{
-    fn parse<R: Read>(mut reader: R) -> Result<Vec<T>> {
+impl Parser for YPBankBin {
+    type Item = YPBankRecord;
+    fn parse<R: Read>(mut reader: R) -> Result<Vec<YPBankRecord>> {
         let mut records = Vec::new();
 
         loop {
             match YPBankRecord::read_from(&mut reader) {
-                Ok(record) => {
-                    let json_obj = serde_json::json!({
-                        "TX_ID": record.tx_id,
-                        "TX_TYPE": record.tx_type.to_string(),
-                        "FROM_USER_ID": record.from_user_id,
-                        "TO_USER_ID": record.to_user_id,
-                        "AMOUNT": record.amount,
-                        "TIMESTAMP": record.timestamp,
-                        "STATUS": record.status.to_string(),
-                        "DESCRIPTION": record.description
-                    });
-
-                    let item: T = serde_json::from_value(json_obj)?;
-                    records.push(item);
-                }
+                Ok(record) => records.push(record),
                 Err(ParseError::Io(e))
                     if e.kind() == std::io::ErrorKind::UnexpectedEof =>
                 {
@@ -42,20 +25,10 @@ where
     }
 }
 
-impl<T> Serializer<T> for YPBankBin
-where
-    T: Serialize,
-{
-    fn serialize<W: Write>(data: &[T], mut writer: W) -> Result<()> {
-        for item in data {
-            let json_value = serde_json::to_value(item)?;
-            let obj = json_value.as_object().ok_or_else(|| {
-                ParseError::BinaryFormat(
-                    "Expected object for serialization".to_string(),
-                )
-            })?;
-
-            let record = YPBankRecord::try_from(obj)?;
+impl Serializer for YPBankBin {
+    type Item = YPBankRecord;
+    fn serialize<W: Write>(data: &[YPBankRecord], mut writer: W) -> Result<()> {
+        for record in data {
             record.write_to(&mut writer)?;
         }
         Ok(())

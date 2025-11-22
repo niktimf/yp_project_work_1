@@ -1,19 +1,42 @@
+use crate::ParseError;
 use crate::errors::Result;
-use crate::formats::{Parser, Serializer};
-use serde::{Deserialize, Serialize};
+use crate::formats::{
+    Parser, Serializer, YP_BANK_RECORD_UPPERCASE_FIELDS, YPBankRecord,
+};
 use std::io::{Read, Write};
 
 /// CSV формат данных
 pub struct YPBankCSV;
 
-impl<T> Parser<T> for YPBankCSV
-where
-    T: for<'de> Deserialize<'de>,
-{
-    fn parse<R: Read>(reader: R) -> Result<Vec<T>> {
+impl Parser for YPBankCSV {
+    type Item = YPBankRecord;
+    fn parse<R: Read>(reader: R) -> Result<Vec<YPBankRecord>> {
         let mut csv_reader = csv::ReaderBuilder::new()
             .has_headers(true)
             .from_reader(reader);
+
+        let headers = csv_reader.headers()?;
+        let expected = YP_BANK_RECORD_UPPERCASE_FIELDS.to_vec();
+
+        if headers.len() != expected.len() {
+            return Err(ParseError::InvalidField {
+                field: "headers".to_string(),
+                value: format!(
+                    "Expected {} columns, got {}",
+                    expected.len(),
+                    headers.len()
+                ),
+            });
+        }
+
+        for (i, (got, exp)) in headers.iter().zip(&expected).enumerate() {
+            if got != *exp {
+                return Err(ParseError::InvalidField {
+                    field: format!("column_{i}"),
+                    value: format!("expected '{exp}', got '{got}'"),
+                });
+            }
+        }
 
         let mut records = Vec::new();
         for result in csv_reader.deserialize() {
@@ -24,15 +47,15 @@ where
     }
 }
 
-impl<T> Serializer<T> for YPBankCSV
-where
-    T: Serialize,
-{
-    fn serialize<W: Write>(data: &[T], writer: W) -> Result<()> {
+impl Serializer for YPBankCSV {
+    type Item = YPBankRecord;
+    fn serialize<W: Write>(data: &[YPBankRecord], writer: W) -> Result<()> {
         let mut csv_writer = csv::Writer::from_writer(writer);
+        let headers = YP_BANK_RECORD_UPPERCASE_FIELDS.to_vec();
+        csv_writer.write_record(headers)?;
 
-        for item in data {
-            csv_writer.serialize(item)?;
+        for record in data {
+            csv_writer.serialize(record)?;
         }
 
         csv_writer.flush()?;
