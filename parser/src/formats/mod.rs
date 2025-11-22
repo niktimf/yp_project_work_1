@@ -383,3 +383,126 @@ pub trait Serializer<T> {
 /// Трейт для полного формата данных (парсинг + сериализация)
 pub trait Format<T>: Parser<T> + Serializer<T> {}
 impl<T, F> Format<T> for F where F: Parser<T> + Serializer<T> {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::formats::{TransactionStatus, TransactionType, YPBankRecord};
+    use proptest::prelude::Strategy;
+    use proptest::prop_oneof;
+    use proptest::strategy::Just;
+    use rstest::*;
+
+    pub struct RecordBuilder {
+        record: YPBankRecord,
+    }
+
+    impl RecordBuilder {
+        pub fn new() -> Self {
+            Self {
+                record: YPBankRecord {
+                    tx_id: 1000000000000000,
+                    tx_type: TransactionType::Deposit,
+                    from_user_id: 0,
+                    to_user_id: 9223372036854775807,
+                    amount: 100,
+                    timestamp: 1633036860000,
+                    status: TransactionStatus::Failure,
+                    description: "Record number 1".to_string(),
+                },
+            }
+        }
+
+        pub fn with_tx_id(mut self, tx_id: u64) -> Self {
+            self.record.tx_id = tx_id;
+            self
+        }
+
+        pub fn with_type(mut self, tx_type: TransactionType) -> Self {
+            self.record.tx_type = tx_type;
+            self
+        }
+
+        pub fn with_status(mut self, status: TransactionStatus) -> Self {
+            self.record.status = status;
+            self
+        }
+
+        pub fn with_description(mut self, desc: impl Into<String>) -> Self {
+            self.record.description = desc.into();
+            self
+        }
+
+        pub fn build(self) -> YPBankRecord {
+            self.record
+        }
+    }
+
+    #[fixture]
+    pub fn base_record() -> YPBankRecord {
+        RecordBuilder::new().build()
+    }
+
+    pub fn arb_transaction_type() -> impl Strategy<Value = TransactionType> {
+        prop_oneof![
+            Just(TransactionType::Deposit),
+            Just(TransactionType::Withdrawal),
+            Just(TransactionType::Transfer),
+        ]
+    }
+
+    /// Генератор для TransactionStatus
+    pub fn arb_transaction_status() -> impl Strategy<Value = TransactionStatus>
+    {
+        prop_oneof![
+            Just(TransactionStatus::Success),
+            Just(TransactionStatus::Failure),
+            Just(TransactionStatus::Pending),
+        ]
+    }
+
+    /// Генератор для валидных строк (без переносов строк и двоеточий)
+    pub fn arb_safe_string() -> impl Strategy<Value = String> {
+        "[a-zA-Z0-9 ]{1,50}"
+            .prop_filter("не должно быть двоеточий", |s| {
+                !s.contains(':')
+            })
+    }
+
+    /// Генератор для случайной записи
+    pub fn arb_record() -> impl Strategy<Value = YPBankRecord> {
+        (
+            0_u64..=i64::MAX as u64, // Ограничиваем до i64::MAX для совместимости с JSON
+            arb_transaction_type(),
+            0_u64..=i64::MAX as u64,
+            0_u64..=i64::MAX as u64,
+            0_u64..=i64::MAX as u64,
+            0_u64..=i64::MAX as u64,
+            arb_transaction_status(),
+            arb_safe_string(),
+        )
+            .prop_map(
+                |(
+                    tx_id,
+                    tx_type,
+                    from_user_id,
+                    to_user_id,
+                    amount,
+                    timestamp,
+                    status,
+                    desc,
+                )| {
+                    YPBankRecord {
+                        tx_id,
+                        tx_type,
+                        from_user_id,
+                        to_user_id,
+                        amount,
+                        timestamp,
+                        status,
+                        description: desc,
+                    }
+                },
+            )
+    }
+}

@@ -3,9 +3,9 @@ use crate::formats::{Parser, Serializer, YPBankRecord};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 
-pub struct YPBankBinaryFormat;
+pub struct YPBankBin;
 
-impl<T> Parser<T> for YPBankBinaryFormat
+impl<T> Parser<T> for YPBankBin
 where
     T: for<'de> Deserialize<'de>,
 {
@@ -42,7 +42,7 @@ where
     }
 }
 
-impl<T> Serializer<T> for YPBankBinaryFormat
+impl<T> Serializer<T> for YPBankBin
 where
     T: Serialize,
 {
@@ -71,8 +71,7 @@ mod tests {
     #[test]
     fn test_binary_parsing() {
         let file = File::open("src/test_data/records_example.bin").unwrap();
-        let records: Vec<YPBankRecord> =
-            YPBankBinaryFormat::parse(file).unwrap();
+        let records: Vec<YPBankRecord> = YPBankBin::parse(file).unwrap();
 
         // Проверяем что файл содержит данные
         assert!(!records.is_empty());
@@ -106,14 +105,14 @@ mod tests {
         }];
 
         let mut buffer = Vec::new();
-        YPBankBinaryFormat::serialize(&records, &mut buffer).unwrap();
+        YPBankBin::serialize(&records, &mut buffer).unwrap();
 
         // Проверяем что данные сериализованы (бинарные данные не пусты)
         assert!(!buffer.is_empty());
 
         // Проверяем что можем обратно десериализовать
         let parsed_records: Vec<YPBankRecord> =
-            YPBankBinaryFormat::parse(buffer.as_slice()).unwrap();
+            YPBankBin::parse(buffer.as_slice()).unwrap();
         assert_eq!(parsed_records.len(), 1);
         assert_eq!(parsed_records[0], records[0]);
 

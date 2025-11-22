@@ -1,7 +1,7 @@
 use clap::Parser;
 use parser::formats::{
-    Parser as YPBankParser, YPBankRecord, binary::YPBankBinaryFormat,
-    csv::CsvFormat, txt::TextFormat,
+    Parser as YpBankParser, YPBankRecord, binary::YPBankBin, csv::YPBankCSV,
+    txt::YPBankText,
 };
 use std::fs::File;
 use std::io::{BufReader, Read};
@@ -79,13 +79,13 @@ fn parse_file<R: Read>(
 ) -> anyhow::Result<Vec<YPBankRecord>> {
     match format {
         YpBankFormat::Csv => {
-            CsvFormat::parse(reader).map_err(anyhow::Error::from)
+            YPBankCSV::parse(reader).map_err(anyhow::Error::from)
         }
         YpBankFormat::Txt => {
-            TextFormat::parse(reader).map_err(anyhow::Error::from)
+            YPBankText::parse(reader).map_err(anyhow::Error::from)
         }
         YpBankFormat::Binary => {
-            YPBankBinaryFormat::parse(reader).map_err(anyhow::Error::from)
+            YPBankBin::parse(reader).map_err(anyhow::Error::from)
         }
     }
 }

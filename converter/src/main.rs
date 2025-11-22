@@ -1,6 +1,6 @@
 use clap::Parser;
 use parser::formats::{
-    YPBankRecord, binary::YPBankBinaryFormat, csv::CsvFormat, txt::TextFormat,
+    YPBankRecord, binary::YPBankBin, csv::YPBankCSV, txt::YPBankText,
 };
 use parser::{ParseError, Result};
 use std::fs::File;
@@ -77,9 +77,9 @@ fn parse_input<R: Read>(
     use parser::formats::Parser as FormatParser;
 
     match format {
-        Format::Csv => CsvFormat::parse(reader),
-        Format::Txt => TextFormat::parse(reader),
-        Format::Binary => YPBankBinaryFormat::parse(reader),
+        Format::Csv => YPBankCSV::parse(reader),
+        Format::Txt => YPBankText::parse(reader),
+        Format::Binary => YPBankBin::parse(reader),
     }
 }
 
@@ -91,8 +91,8 @@ fn serialize_output<W: Write>(
     use parser::formats::Serializer;
 
     match format {
-        Format::Csv => CsvFormat::serialize(records, writer),
-        Format::Txt => TextFormat::serialize(records, writer),
-        Format::Binary => YPBankBinaryFormat::serialize(records, writer),
+        Format::Csv => YPBankCSV::serialize(records, writer),
+        Format::Txt => YPBankText::serialize(records, writer),
+        Format::Binary => YPBankBin::serialize(records, writer),
     }
 }
