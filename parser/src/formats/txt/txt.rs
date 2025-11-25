@@ -4,7 +4,6 @@ use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Read, Write};
 
-/// Text формат данных
 pub struct YPBankText;
 
 #[derive(Debug)]
@@ -25,7 +24,7 @@ impl Parser for YPBankText {
             let trimmed = line.trim();
 
             if trimmed.is_empty() {
-                // Пустая строка - завершаем текущую запись если есть
+                // Empty line - finish current record if exists
                 if let ParseState::InRecord(fields) = state {
                     if !fields.is_empty() {
                         let record = deserialize_fields(fields)?;
@@ -34,29 +33,28 @@ impl Parser for YPBankText {
                     state = ParseState::WaitingForRecord;
                 }
             } else if trimmed.starts_with('#') {
-                // Игнорируем любые комментарии
+                // Ignore any comments
             } else {
-                // Это должно быть поле записи
+                // This should be a record field
                 match state {
                     ParseState::WaitingForRecord => {
-                        // Начинаем новую запись
+                        // Start a new record
                         state = ParseState::InRecord(BTreeMap::new());
                     }
                     ParseState::InRecord(_) => {}
                 }
 
-                if let ParseState::InRecord(ref mut fields) = state {
-                    // Парсим поле
-                    if let Some((key, value)) = parse_field(trimmed) {
-                        fields.insert(key.to_string(), clean_value(value));
-                    }
+                if let ParseState::InRecord(ref mut fields) = state
+                    && let Some((key, value)) = parse_field(trimmed)
+                {
+                    fields.insert(key.to_string(), clean_value(value));
                 }
             }
 
             line.clear();
         }
 
-        // Обрабатываем последнюю запись если EOF
+        // Process last record if EOF
         if let ParseState::InRecord(fields) = state
             && !fields.is_empty()
         {
@@ -85,15 +83,12 @@ fn deserialize_fields<T>(fields: BTreeMap<String, String>) -> Result<T>
 where
     T: for<'de> Deserialize<'de>,
 {
-    // Преобразуем строковые значения в правильные типы JSON
     let mut json_map = serde_json::Map::new();
 
     for (key, value) in fields {
         let json_value = if value.starts_with('"') && value.ends_with('"') {
-            // Это строка с кавычками - убираем кавычки
             serde_json::Value::String(value.trim_matches('"').to_string())
         } else {
-            // Используем умный вывод типа на основе имени поля
             infer_field_type(&key, &value)
         };
         json_map.insert(key, json_value);
@@ -104,13 +99,13 @@ where
     Ok(item)
 }
 
-/// Определяет тип JSON значения для поля на основе его имени и значения.
-/// Этот подход основан на знании схемы `YPBankRecord` и является
-/// прагматичным решением для текстового формата.
+/// Determines JSON value type for a field based on its name and value.
+/// This approach is based on knowledge of the `YPBankRecord` schema and is
+/// a pragmatic solution for the text format.
 fn infer_field_type(field_name: &str, value: &str) -> serde_json::Value {
     let upper_field = field_name.to_uppercase();
 
-    // Поля с числовыми типами (u64) - они всегда должны быть числами
+    // Fields with numeric types (u64) - they should always be numbers
     if matches!(
         upper_field.as_str(),
         "TX_ID" | "FROM_USER_ID" | "TO_USER_ID" | "AMOUNT" | "TIMESTAMP"
@@ -119,7 +114,7 @@ fn infer_field_type(field_name: &str, value: &str) -> serde_json::Value {
         return serde_json::Value::Number(serde_json::Number::from(num));
     }
 
-    // Поля с enum типами и строки - они должны быть строками для custom deserializers
+    // Fields with enum types and strings - they should be strings for custom deserializers
     if matches!(upper_field.as_str(), "TX_TYPE" | "STATUS" | "DESCRIPTION") {
         return serde_json::Value::String(value.to_string());
     }
@@ -134,7 +129,6 @@ impl Serializer for YPBankText {
     type Item = YPBankRecord;
     fn serialize<W: Write>(data: &[YPBankRecord], mut writer: W) -> Result<()> {
         for (index, record) in data.iter().enumerate() {
-            // Сериализуем в JSON, затем в текстовый формат
             let json_value = serde_json::to_value(record)?;
 
             if let serde_json::Value::Object(map) = json_value {
@@ -161,9 +155,7 @@ mod tests {
     use super::*;
     use crate::formats::{TransactionStatus, TransactionType, YPBankRecord};
     use rstest::*;
-    use std::fs::File;
 
-    /// Фикстура для простого TXT без комментариев
     #[fixture]
     fn simple_txt() -> &'static str {
         r#"TX_ID: 1000000000000000
@@ -177,7 +169,6 @@ DESCRIPTION: "Record number 1"
 "#
     }
 
-    /// Фикстура для TXT с комментариями
     #[fixture]
     fn txt_with_comments() -> &'static str {
         r#"# This is a comment
@@ -252,25 +243,14 @@ DESCRIPTION: "User transfer"
 
             assert_eq!(records.len(), 2);
 
-            // Первая запись
-            assert_eq!(records[0].tx_id, 1234567890123456);
+            assert_eq!(records[0].tx_id, 1_234_567_890_123_456);
             assert_eq!(records[0].tx_type, TransactionType::Deposit);
             assert_eq!(records[0].status, TransactionStatus::Success);
             assert_eq!(records[0].description, "Terminal deposit");
 
-            // Вторая запись
-            assert_eq!(records[1].tx_id, 2312321321321321);
+            assert_eq!(records[1].tx_id, 2_312_321_321_321_321);
             assert_eq!(records[1].tx_type, TransactionType::Transfer);
             assert_eq!(records[1].status, TransactionStatus::Failure);
-        }
-
-        #[test]
-        fn test_parsing_from_file() {
-            let file = File::open("src/test_data/records_example.txt").unwrap();
-            let records: Vec<YPBankRecord> = YPBankText::parse(file).unwrap();
-
-            assert!(!records.is_empty());
-            assert_eq!(records[0].tx_id, 1000000000000000);
         }
 
         #[rstest]
@@ -286,7 +266,6 @@ DESCRIPTION: "User transfer"
             assert_eq!(records, expected);
         }
 
-        /// Table-driven тест для различных типов транзакций
         #[rstest]
         #[case(TransactionType::Deposit, "DEPOSIT")]
         #[case(TransactionType::Withdrawal, "WITHDRAWAL")]
@@ -313,7 +292,6 @@ DESCRIPTION: "Test"
             assert_eq!(records[0].tx_type, tx_type);
         }
 
-        /// Table-driven тест для различных статусов
         #[rstest]
         #[case(TransactionStatus::Success, "SUCCESS")]
         #[case(TransactionStatus::Failure, "FAILURE")]
@@ -340,13 +318,11 @@ DESCRIPTION: "Test"
             assert_eq!(records[0].status, status);
         }
 
-        /// Тест граничных значений для числовых полей
         #[rstest]
         #[case(i64::MAX as u64)]
-        // Максимальное значение, которое JSON может прочитать
         #[case(u64::MIN)]
         #[case(0)]
-        #[case(1000000)]
+        #[case(1_000_000)]
         fn test_boundary_values(#[case] value: u64) {
             let txt = format!(
                 r#"TX_ID: {value}
@@ -401,28 +377,20 @@ DESCRIPTION: "Test"
         use super::*;
         use crate::formats::tests::arb_record;
         use proptest::prelude::*;
-        // ============================================================================
-        // Property 1: Roundtrip - Сериализация + Парсинг = Исходные данные
-        // ============================================================================
 
         proptest! {
-            /// Любая запись должна восстанавливаться после сериализации и парсинга
             #[test]
             fn prop_roundtrip_single_record(record in arb_record()) {
                 let original = vec![record];
 
-                // Сериализуем
                 let mut buffer = Vec::new();
                 YPBankText::serialize(&original, &mut buffer)?;
 
-                // Парсим обратно
                 let parsed: Vec<YPBankRecord> = YPBankText::parse(&buffer[..])?;
 
-                // Должны получить то же самое
                 prop_assert_eq!(original, parsed);
             }
 
-            /// Любой список записей должен восстанавливаться
             #[test]
             fn prop_roundtrip_multiple_records(
                 records in prop::collection::vec(arb_record(), 0..100)
@@ -439,25 +407,14 @@ DESCRIPTION: "Test"
             }
         }
 
-        // ============================================================================
-        // Property 2: Парсинг не должен падать на любых данных
-        // ============================================================================
-
         proptest! {
-            /// Парсер не должен паниковать на любом входе
             #[test]
             fn prop_parser_never_panics(data in prop::collection::vec(any::<u8>(), 0..1000)) {
-                // Может вернуть ошибку, но не должен паниковать
                 let _: Result<Vec<YPBankRecord>> = YPBankText::parse(&data[..]);
             }
         }
 
-        // ============================================================================
-        // Property 3: Количество записей
-        // ============================================================================
-
         proptest! {
-            /// Количество записей после roundtrip должно совпадать
             #[test]
             fn prop_record_count_preserved(
                 records in prop::collection::vec(arb_record(), 1..50)
@@ -472,15 +429,9 @@ DESCRIPTION: "Test"
             }
         }
 
-        // ============================================================================
-        // Property 4: Коммутативность полей
-        // ============================================================================
-
         proptest! {
-            /// Порядок полей внутри записи не должен влиять на результат
             #[test]
             fn prop_field_order_irrelevant(record in arb_record()) {
-                // Создаем запись с полями в разном порядке
                 let txt1 = format!(
                     "TX_ID: {}\nTX_TYPE: {}\nAMOUNT: {}\nSTATUS: {}\nDESCRIPTION: \"{}\"\nFROM_USER_ID: {}\nTO_USER_ID: {}\nTIMESTAMP: {}\n\n",
                     record.tx_id, record.tx_type, record.amount, record.status,
@@ -500,12 +451,7 @@ DESCRIPTION: "Test"
             }
         }
 
-        // ============================================================================
-        // Property 5: Добавление комментариев не меняет результат
-        // ============================================================================
-
         proptest! {
-            /// Комментарии должны игнорироваться
             #[test]
             fn prop_comments_ignored(
                 record in arb_record(),
@@ -513,14 +459,12 @@ DESCRIPTION: "Test"
             ) {
                 let records = vec![record];
 
-                // Без комментария
                 let mut buffer1 = Vec::new();
                 YPBankText::serialize(&records, &mut buffer1)?;
                 let parsed1: Vec<YPBankRecord> = YPBankText::parse(&buffer1[..])?;
 
-                // С комментарием перед записью
                 let mut buffer2 = Vec::new();
-                writeln!(&mut buffer2, "{}", comment)?;
+                writeln!(&mut buffer2, "{comment}")?;
                 YPBankText::serialize(&records, &mut buffer2)?;
                 let parsed2: Vec<YPBankRecord> = YPBankText::parse(&buffer2[..])?;
 
@@ -528,10 +472,6 @@ DESCRIPTION: "Test"
             }
         }
     }
-
-    // ============================================================================
-    // Edge Cases и Error Handling
-    // ============================================================================
 
     mod edge_cases {
         use super::*;

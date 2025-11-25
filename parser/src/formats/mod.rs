@@ -271,7 +271,7 @@ impl TryFrom<&str> for TransactionType {
     type Error = ParseError;
 
     fn try_from(s: &str) -> Result<Self> {
-        match s {
+        match s.to_uppercase().as_str() {
             "DEPOSIT" => Ok(Self::Deposit),
             "TRANSFER" => Ok(Self::Transfer),
             "WITHDRAWAL" => Ok(Self::Withdrawal),
@@ -414,12 +414,12 @@ mod tests {
         pub fn new() -> Self {
             Self {
                 record: YPBankRecord {
-                    tx_id: 1000000000000000,
+                    tx_id: 1_000_000_000_000_000,
                     tx_type: TransactionType::Deposit,
                     from_user_id: 0,
-                    to_user_id: 9223372036854775807,
+                    to_user_id: 9_223_372_036_854_775_807,
                     amount: 100,
-                    timestamp: 1633036860000,
+                    timestamp: 1_633_036_860_000,
                     status: TransactionStatus::Failure,
                     description: "Record number 1".to_string(),
                 },
@@ -454,7 +454,7 @@ mod tests {
         ]
     }
 
-    /// Генератор для TransactionStatus
+    /// Генератор для `TransactionStatus`
     pub fn arb_transaction_status() -> impl Strategy<Value = TransactionStatus>
     {
         prop_oneof![

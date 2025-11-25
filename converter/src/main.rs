@@ -8,17 +8,17 @@ use std::io::{self, BufReader, BufWriter, Read, Write};
 
 #[derive(Parser, Debug)]
 #[command(name = "ypbank_converter")]
-#[command(about = "Конвертер банковских записей между форматами", long_about = None)]
+#[command(about = "Bank records converter between formats", long_about = None)]
 struct Args {
-    /// Входной файл (или - для stdin)
+    /// Input file (or - for stdin)
     #[arg(long)]
     input: String,
 
-    /// Формат входного файла (csv, txt, binary)
+    /// Input file format (csv, txt, binary)
     #[arg(long, value_enum)]
     input_format: YPBankFormat,
 
-    /// Формат выходного файла (csv, txt, binary)
+    /// Output file format (csv, txt, binary)
     #[arg(long, value_enum)]
     output_format: YPBankFormat,
 }
@@ -32,7 +32,7 @@ enum YPBankFormat {
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("Ошибка: {e}");
+        eprintln!("Error: {e}");
         std::process::exit(1);
     }
 }
@@ -46,10 +46,7 @@ fn run() -> Result<()> {
         Box::new(File::open(&args.input).map_err(|e| {
             ParseError::Io(io::Error::new(
                 e.kind(),
-                format!(
-                    "Не удалось открыть входной файл '{}': {}",
-                    args.input, e
-                ),
+                format!("Failed to open input file '{}': {}", args.input, e),
             ))
         })?)
     };
@@ -57,16 +54,16 @@ fn run() -> Result<()> {
     let records = parse_input(BufReader::new(reader), &args.input_format)?;
 
     if records.is_empty() {
-        eprintln!("Предупреждение: входной файл не содержит записей");
+        eprintln!("Warning: input file contains no records");
     } else {
-        eprintln!("Распарсено {} записей", records.len());
+        eprintln!("Parsed {} records", records.len());
     }
 
     let mut writer = BufWriter::new(io::stdout());
     serialize_output(&mut writer, &args.output_format, &records)?;
     writer.flush().map_err(ParseError::Io)?;
 
-    eprintln!("Конвертация завершена успешно");
+    eprintln!("Conversion completed successfully");
     Ok(())
 }
 
