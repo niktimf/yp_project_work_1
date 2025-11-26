@@ -7,8 +7,9 @@ use crate::errors::Result;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use field_names::FieldNames;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 use std::io::{Read, Write};
+use std::str::FromStr;
+use strum::{Display, EnumString, IntoStaticStr};
 
 use std::sync::LazyLock;
 
@@ -167,7 +168,13 @@ impl TryFrom<&serde_json::Map<String, serde_json::Value>> for YPBankRecord {
                         "Missing or invalid TX_TYPE".to_string(),
                     )
                 })
-                .and_then(TransactionType::try_from)?,
+                .and_then(|s| {
+                    TransactionType::from_str(s).map_err(|_| {
+                        ParseError::BinaryFormat(format!(
+                            "Unknown TX_TYPE: {s}"
+                        ))
+                    })
+                })?,
             from_user_id: obj
                 .get("FROM_USER_ID")
                 .and_then(serde_json::Value::as_u64)
@@ -208,7 +215,11 @@ impl TryFrom<&serde_json::Map<String, serde_json::Value>> for YPBankRecord {
                         "Missing or invalid STATUS".to_string(),
                     )
                 })
-                .and_then(TransactionStatus::try_from)?,
+                .and_then(|s| {
+                    TransactionStatus::from_str(s).map_err(|_| {
+                        ParseError::BinaryFormat(format!("Unknown STATUS: {s}"))
+                    })
+                })?,
             description: obj
                 .get("DESCRIPTION")
                 .and_then(|v| v.as_str())
@@ -222,8 +233,11 @@ impl TryFrom<&serde_json::Map<String, serde_json::Value>> for YPBankRecord {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Display, EnumString, IntoStaticStr,
+)]
 #[repr(u8)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum TransactionType {
     Deposit = 0,
     Transfer = 1,
@@ -248,7 +262,7 @@ impl<'de> Deserialize<'de> for TransactionType {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Self::try_from(s.as_str()).map_err(serde::de::Error::custom)
+        Self::from_str(&s).map_err(serde::de::Error::custom)
     }
 }
 
@@ -267,35 +281,11 @@ impl TryFrom<u8> for TransactionType {
     }
 }
 
-impl TryFrom<&str> for TransactionType {
-    type Error = ParseError;
-
-    fn try_from(s: &str) -> Result<Self> {
-        match s.to_uppercase().as_str() {
-            "DEPOSIT" => Ok(Self::Deposit),
-            "TRANSFER" => Ok(Self::Transfer),
-            "WITHDRAWAL" => Ok(Self::Withdrawal),
-            _ => Err(ParseError::BinaryFormat(format!("Unknown TX_TYPE: {s}"))),
-        }
-    }
-}
-
-impl fmt::Display for TransactionType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Deposit => "DEPOSIT",
-                Self::Transfer => "TRANSFER",
-                Self::Withdrawal => "WITHDRAWAL",
-            }
-        )
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Display, EnumString, IntoStaticStr,
+)]
 #[repr(u8)]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum TransactionStatus {
     Success = 0,
     Failure = 1,
@@ -320,7 +310,7 @@ impl<'de> Deserialize<'de> for TransactionStatus {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Self::try_from(s.as_str()).map_err(serde::de::Error::custom)
+        Self::from_str(&s).map_err(serde::de::Error::custom)
     }
 }
 
@@ -336,33 +326,6 @@ impl TryFrom<u8> for TransactionStatus {
                 "Invalid STATUS: {value}"
             ))),
         }
-    }
-}
-
-impl TryFrom<&str> for TransactionStatus {
-    type Error = ParseError;
-
-    fn try_from(s: &str) -> Result<Self> {
-        match s {
-            "SUCCESS" => Ok(Self::Success),
-            "FAILURE" => Ok(Self::Failure),
-            "PENDING" => Ok(Self::Pending),
-            _ => Err(ParseError::BinaryFormat(format!("Unknown STATUS: {s}"))),
-        }
-    }
-}
-
-impl fmt::Display for TransactionStatus {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Success => "SUCCESS",
-                Self::Failure => "FAILURE",
-                Self::Pending => "PENDING",
-            }
-        )
     }
 }
 
