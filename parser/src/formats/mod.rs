@@ -1,5 +1,8 @@
+/// Binary format support for YPBank records.
 pub mod binary;
+/// CSV format support for YPBank records.
 pub mod csv;
+/// Text format support for YPBank records.
 pub mod txt;
 
 use crate::ParseError;
@@ -21,23 +24,53 @@ static YP_BANK_RECORD_UPPERCASE_FIELDS: LazyLock<Vec<String>> =
             .collect()
     });
 
+/// Represents a YPBank transaction record.
+///
+/// This struct contains all the fields of a single transaction
+/// in the YPBank system and can be serialized/deserialized to/from
+/// various formats including CSV, text, and binary.
+///
+/// # Example
+///
+/// ```
+/// use parser::formats::{YPBankRecord, TransactionType, TransactionStatus};
+///
+/// let record = YPBankRecord {
+///     tx_id: 12345,
+///     tx_type: TransactionType::Transfer,
+///     from_user_id: 100,
+///     to_user_id: 200,
+///     amount: 5000,
+///     timestamp: 1234567890,
+///     status: TransactionStatus::Success,
+///     description: "Payment for services".to_string(),
+/// };
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, FieldNames)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub struct YPBankRecord {
+    /// Unique transaction identifier.
     pub tx_id: u64,
+    /// Type of transaction (deposit, transfer, withdrawal).
     pub tx_type: TransactionType,
+    /// ID of the user initiating the transaction.
     pub from_user_id: u64,
+    /// ID of the user receiving the transaction.
     pub to_user_id: u64,
+    /// Transaction amount in minimal currency units (e.g., cents).
     pub amount: u64,
+    /// Unix timestamp of when the transaction occurred.
     pub timestamp: u64,
+    /// Current status of the transaction.
     pub status: TransactionStatus,
+    /// Human-readable description of the transaction.
     pub description: String,
 }
 
 impl YPBankRecord {
     const MAGIC: &'static [u8; 4] = b"YPBN";
 
-    // Размеры полей согласно спецификации
+    // Field sizes according to specification
     const TX_ID_SIZE: usize = 8;
     const TX_TYPE_SIZE: usize = 1;
     const FROM_USER_ID_SIZE: usize = 8;
@@ -47,7 +80,7 @@ impl YPBankRecord {
     const STATUS_SIZE: usize = 1;
     const DESC_LEN_SIZE: usize = 4;
 
-    // Фиксированный размер тела записи (без description)
+    // Fixed record body size (without description)
     const FIXED_SIZE: usize = Self::TX_ID_SIZE
         + Self::TX_TYPE_SIZE
         + Self::FROM_USER_ID_SIZE
@@ -145,102 +178,29 @@ impl From<YPBankRecord> for serde_json::Value {
     }
 }
 
-impl TryFrom<&serde_json::Map<String, serde_json::Value>> for YPBankRecord {
-    type Error = ParseError;
-
-    fn try_from(
-        obj: &serde_json::Map<String, serde_json::Value>,
-    ) -> Result<Self> {
-        Ok(Self {
-            tx_id: obj
-                .get("TX_ID")
-                .and_then(serde_json::Value::as_u64)
-                .ok_or_else(|| {
-                    ParseError::BinaryFormat(
-                        "Missing or invalid TX_ID".to_string(),
-                    )
-                })?,
-            tx_type: obj
-                .get("TX_TYPE")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| {
-                    ParseError::BinaryFormat(
-                        "Missing or invalid TX_TYPE".to_string(),
-                    )
-                })
-                .and_then(|s| {
-                    TransactionType::from_str(s).map_err(|_| {
-                        ParseError::BinaryFormat(format!(
-                            "Unknown TX_TYPE: {s}"
-                        ))
-                    })
-                })?,
-            from_user_id: obj
-                .get("FROM_USER_ID")
-                .and_then(serde_json::Value::as_u64)
-                .ok_or_else(|| {
-                    ParseError::BinaryFormat(
-                        "Missing or invalid FROM_USER_ID".to_string(),
-                    )
-                })?,
-            to_user_id: obj
-                .get("TO_USER_ID")
-                .and_then(serde_json::Value::as_u64)
-                .ok_or_else(|| {
-                    ParseError::BinaryFormat(
-                        "Missing or invalid TO_USER_ID".to_string(),
-                    )
-                })?,
-            amount: obj
-                .get("AMOUNT")
-                .and_then(serde_json::Value::as_u64)
-                .ok_or_else(|| {
-                    ParseError::BinaryFormat(
-                        "Missing or invalid AMOUNT".to_string(),
-                    )
-                })?,
-            timestamp: obj
-                .get("TIMESTAMP")
-                .and_then(serde_json::Value::as_u64)
-                .ok_or_else(|| {
-                    ParseError::BinaryFormat(
-                        "Missing or invalid TIMESTAMP".to_string(),
-                    )
-                })?,
-            status: obj
-                .get("STATUS")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| {
-                    ParseError::BinaryFormat(
-                        "Missing or invalid STATUS".to_string(),
-                    )
-                })
-                .and_then(|s| {
-                    TransactionStatus::from_str(s).map_err(|_| {
-                        ParseError::BinaryFormat(format!("Unknown STATUS: {s}"))
-                    })
-                })?,
-            description: obj
-                .get("DESCRIPTION")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| {
-                    ParseError::BinaryFormat(
-                        "Missing or invalid DESCRIPTION".to_string(),
-                    )
-                })?
-                .to_string(),
-        })
-    }
-}
-
+/// Represents the type of a transaction.
+///
+/// # Example
+///
+/// ```
+/// use parser::formats::TransactionType;
+/// use std::str::FromStr;
+///
+/// let tx_type = TransactionType::from_str("TRANSFER").unwrap();
+/// assert_eq!(tx_type, TransactionType::Transfer);
+/// assert_eq!(tx_type.to_string(), "TRANSFER");
+/// ```
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Display, EnumString, IntoStaticStr,
 )]
 #[repr(u8)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum TransactionType {
+    /// Money deposited into an account.
     Deposit = 0,
+    /// Money transferred between accounts.
     Transfer = 1,
+    /// Money withdrawn from an account.
     Withdrawal = 2,
 }
 
@@ -281,14 +241,29 @@ impl TryFrom<u8> for TransactionType {
     }
 }
 
+/// Represents the status of a transaction.
+///
+/// # Example
+///
+/// ```
+/// use parser::formats::TransactionStatus;
+/// use std::str::FromStr;
+///
+/// let status = TransactionStatus::from_str("SUCCESS").unwrap();
+/// assert_eq!(status, TransactionStatus::Success);
+/// assert_eq!(status.to_string(), "SUCCESS");
+/// ```
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Display, EnumString, IntoStaticStr,
 )]
 #[repr(u8)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum TransactionStatus {
+    /// Transaction completed successfully.
     Success = 0,
+    /// Transaction failed.
     Failure = 1,
+    /// Transaction is pending processing.
     Pending = 2,
 }
 
@@ -329,7 +304,12 @@ impl TryFrom<u8> for TransactionStatus {
     }
 }
 
+/// Trait for parsing data from a reader into a collection of items.
+///
+/// Implementors of this trait define how to parse their specific format
+/// from raw input data.
 pub trait Parser {
+    /// The type of item produced by the parser.
     type Item;
 
     /// Parses data from a reader into a vector of items.
@@ -344,7 +324,12 @@ pub trait Parser {
     fn parse<R: Read>(reader: R) -> Result<Vec<Self::Item>>;
 }
 
+/// Trait for serializing items to a writer.
+///
+/// Implementors of this trait define how to serialize their items
+/// to a specific output format.
 pub trait Serializer {
+    /// The type of item to be serialized.
     type Item;
 
     /// Serializes a slice of items to a writer.
@@ -358,6 +343,9 @@ pub trait Serializer {
     fn serialize<W: Write>(data: &[Self::Item], writer: W) -> Result<()>;
 }
 
+/// Marker trait for types that can both parse and serialize data.
+///
+/// Automatically implemented for all types that implement both Parser and Serializer.
 pub trait Format: Parser + Serializer {}
 impl<F: Parser + Serializer> Format for F {}
 

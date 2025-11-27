@@ -2,6 +2,42 @@ use crate::errors::{ParseError, Result};
 use crate::formats::{Parser, Serializer, YPBankRecord};
 use std::io::{Read, Write};
 
+/// Binary format parser and serializer for YPBank records.
+///
+/// Implements a custom binary format with the following structure:
+/// - Magic number: "YPBN" (4 bytes)
+/// - Record size: u32 big-endian (4 bytes)
+/// - Transaction fields in binary format
+///
+/// This format is more efficient for storage and transmission compared
+/// to text formats but is not human-readable.
+///
+/// # Example
+///
+/// ```
+/// use parser::formats::binary::YPBankBin;
+/// use parser::formats::{Parser, Serializer, YPBankRecord, TransactionType, TransactionStatus};
+///
+/// # fn example() -> parser::Result<()> {
+/// let record = YPBankRecord {
+///     tx_id: 1,
+///     tx_type: TransactionType::Transfer,
+///     from_user_id: 100,
+///     to_user_id: 200,
+///     amount: 5000,
+///     timestamp: 1234567890,
+///     status: TransactionStatus::Success,
+///     description: "Payment".to_string(),
+/// };
+///
+/// let mut buffer = Vec::new();
+/// YPBankBin::serialize(&[record], &mut buffer)?;
+///
+/// let parsed = YPBankBin::parse(buffer.as_slice())?;
+/// assert_eq!(parsed.len(), 1);
+/// # Ok(())
+/// # }
+/// ```
 pub struct YPBankBin;
 
 impl Parser for YPBankBin {
