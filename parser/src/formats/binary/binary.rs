@@ -2,7 +2,7 @@ use crate::errors::{ParseError, Result};
 use crate::formats::{Parser, Serializer, YPBankRecord};
 use std::io::{Read, Write};
 
-/// Binary format parser and serializer for YPBank records.
+/// Binary format parser and serializer for `YPBank` records.
 ///
 /// Implements a custom binary format with the following structure:
 /// - Magic number: "YPBN" (4 bytes)

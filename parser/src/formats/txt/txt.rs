@@ -4,7 +4,7 @@ use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Read, Write};
 
-/// Text format parser and serializer for YPBank records.
+/// Text format parser and serializer for `YPBank` records.
 ///
 /// Handles human-readable text format with a specific structure:
 /// - Records are separated by `---`

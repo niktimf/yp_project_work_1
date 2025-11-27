@@ -2,13 +2,13 @@
 
 use thiserror::Error;
 
-/// Type alias for Results with ParseError.
+/// Type alias for Results with `ParseError`.
 pub type Result<T> = std::result::Result<T, ParseError>;
 
 /// Comprehensive error type for all parsing operations.
 ///
 /// This enum represents all possible errors that can occur during
-/// parsing, serialization, and processing of YPBank transaction records.
+/// parsing, serialization, and processing of `YPBank` transaction records.
 #[derive(Error, Debug)]
 pub enum ParseError {
     /// I/O operation error.

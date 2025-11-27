@@ -1,7 +1,7 @@
-//! Parser library for YPBank transaction records.
+//! Parser library for `YPBank` transaction records.
 //!
 //! This library provides functionality to parse, serialize, and process
-//! transaction records from YPBank in various formats including CSV, text, and binary.
+//! transaction records from `YPBank` in various formats including CSV, text, and binary.
 //!
 //! # Example
 //!

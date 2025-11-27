@@ -5,7 +5,7 @@ use crate::formats::{
 };
 use std::io::{Read, Write};
 
-/// CSV format parser and serializer for YPBank records.
+/// CSV format parser and serializer for `YPBank` records.
 ///
 /// Handles parsing and serialization of transaction records in CSV format
 /// with specific header requirements and field validation.

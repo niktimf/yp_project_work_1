@@ -1,8 +1,8 @@
-/// Binary format support for YPBank records.
+/// Binary format support for `YPBank` records.
 pub mod binary;
-/// CSV format support for YPBank records.
+/// CSV format support for `YPBank` records.
 pub mod csv;
-/// Text format support for YPBank records.
+/// Text format support for `YPBank` records.
 pub mod txt;
 
 use crate::ParseError;
@@ -24,10 +24,10 @@ static YP_BANK_RECORD_UPPERCASE_FIELDS: LazyLock<Vec<String>> =
             .collect()
     });
 
-/// Represents a YPBank transaction record.
+/// Represents a `YPBank` transaction record.
 ///
 /// This struct contains all the fields of a single transaction
-/// in the YPBank system and can be serialized/deserialized to/from
+/// in the `YPBank` system and can be serialized/deserialized to/from
 /// various formats including CSV, text, and binary.
 ///
 /// # Example
