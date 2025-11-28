@@ -4,6 +4,41 @@ use serde::Deserialize;
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Read, Write};
 
+/// Text format parser and serializer for `YPBank` records.
+///
+/// Handles human-readable text format with a specific structure:
+/// - Records are separated by `---`
+/// - Each field is on its own line with format: `FIELD_NAME: value`
+///
+/// # Format Example
+///
+/// ```text
+/// ---
+/// TX_ID: 1
+/// TX_TYPE: TRANSFER
+/// FROM_USER_ID: 100
+/// TO_USER_ID: 200
+/// AMOUNT: 5000
+/// TIMESTAMP: 1234567890
+/// STATUS: SUCCESS
+/// DESCRIPTION: Payment
+/// ---
+/// ```
+///
+/// # Example
+///
+/// ```
+/// use parser::formats::txt::YPBankText;
+/// use parser::formats::Parser;
+///
+/// # fn example() -> parser::Result<()> {
+/// let text_data = "---\nTX_ID: 1\nTX_TYPE: TRANSFER\nFROM_USER_ID: 100\nTO_USER_ID: 200\nAMOUNT: 5000\nTIMESTAMP: 1234567890\nSTATUS: SUCCESS\nDESCRIPTION: Payment\n---\n";
+///
+/// let records = YPBankText::parse(text_data.as_bytes())?;
+/// assert_eq!(records.len(), 1);
+/// # Ok(())
+/// # }
+/// ```
 pub struct YPBankText;
 
 #[derive(Debug)]

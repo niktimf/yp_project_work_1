@@ -30,14 +30,7 @@ enum YPBankFormat {
     Binary,
 }
 
-fn main() {
-    if let Err(e) = run() {
-        eprintln!("Error: {e}");
-        std::process::exit(1);
-    }
-}
-
-fn run() -> Result<()> {
+fn main() -> Result<()> {
     let args = Args::parse();
 
     let reader: Box<dyn Read> = if args.input == "-" {

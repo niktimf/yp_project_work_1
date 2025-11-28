@@ -5,6 +5,28 @@ use crate::formats::{
 };
 use std::io::{Read, Write};
 
+/// CSV format parser and serializer for `YPBank` records.
+///
+/// Handles parsing and serialization of transaction records in CSV format
+/// with specific header requirements and field validation.
+///
+/// # Example
+///
+/// ```
+/// use parser::formats::csv::YPBankCSV;
+/// use parser::formats::{Parser, Serializer};
+///
+/// # fn example() -> parser::Result<()> {
+/// let csv_data = "TX_ID,TX_TYPE,FROM_USER_ID,TO_USER_ID,AMOUNT,TIMESTAMP,STATUS,DESCRIPTION
+/// 1,TRANSFER,100,200,5000,1234567890,SUCCESS,Payment";
+///
+/// let records = YPBankCSV::parse(csv_data.as_bytes())?;
+///
+/// let mut output = Vec::new();
+/// YPBankCSV::serialize(&records, &mut output)?;
+/// # Ok(())
+/// # }
+/// ```
 pub struct YPBankCSV;
 
 impl Parser for YPBankCSV {
